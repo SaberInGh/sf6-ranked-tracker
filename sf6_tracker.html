@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="savages">
+<title>SF6 排位对局记录</title>
+<script src="chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --card2: #222633;
+    --border: #2e3348;
+    --text: #e4e6f0;
+    --text2: #8b8fa3;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00cec9;
+    --red: #ff6b6b;
+    --yellow: #feca57;
+    --blue: #54a0ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .app { max-width: 1200px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent2), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:hover { background: var(--card2); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #5a4bd6; }
+  .btn.danger { border-color: var(--red); color: var(--red); }
+  .btn.danger:hover { background: rgba(255,107,107,.15); }
+  .btn.sm { padding: 5px 10px; font-size: 12px; }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-card .label { font-size: 11px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-card .value { font-size: 22px; font-weight: 700; }
+  .stat-card .value.up { color: var(--green); }
+  .stat-card .value.down { color: var(--red); }
+  .stat-card .value.neutral { color: var(--blue); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--card);
+    border-radius: 10px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text2);
+    transition: all .2s;
+    border: none;
+    background: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--accent); color: #fff; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Form */
+  .form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .form-card h3 { font-size: 15px; margin-bottom: 16px; color: var(--accent2); }
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; color: var(--text2); font-weight: 500; }
+  .form-group input, .form-group select {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group select option { background: var(--card); }
+  .result-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .result-toggle button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: var(--bg);
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .result-toggle button.win-active { background: var(--green); color: #000; }
+  .result-toggle button.loss-active { background: var(--red); color: #fff; }
+  .result-toggle button.draw-active { background: #9ca3af; color: #fff; }
+
+  /* Table */
+  .table-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-header h3 { font-size: 15px; color: var(--accent2); }
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: fixed;
+  }
+  th {
+    background: var(--card2);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    position: sticky;
+    top: 0;
+  }
+  th, td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(46,51,72,.5);
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  th:nth-child(1), td:nth-child(1) { width: 50px; }
+  th:nth-child(2), td:nth-child(2) { width: 100px; }
+  th:nth-child(3), td:nth-child(3) { width: 70px; }
+  th:nth-child(4), td:nth-child(4) { width: 90px; }
+  th:nth-child(5), td:nth-child(5) { width: 120px; }
+  th:nth-child(6), td:nth-child(6) { width: 70px; }
+  th:nth-child(7), td:nth-child(7) { width: 150px; }
+  th:nth-child(8), td:nth-child(8) { width: 80px; }
+  tr:hover td { background: rgba(108,92,231,.05); }
+  .actions-cell { white-space: nowrap; }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .tag.win { background: rgba(0,206,201,.15); color: var(--green); }
+  .tag.loss { background: rgba(255,107,107,.15); color: var(--red); }
+  .tag.draw { background: rgba(156,163,175,.15); color: #6b7280; }
+  .diff-up { color: var(--green); font-weight: 600; }
+  .diff-down { color: var(--red); font-weight: 600; }
+  .actions-cell { display: flex; gap: 4px; }
+
+  /* Chart cards */
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px 16px;
+    margin-bottom: 20px;
+  }
+  .chart-card h3 { font-size: 15px; margin-bottom: 14px; color: var(--accent2); }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.main { height: 400px; }
+  .chart-wrap.diff { height: 300px; }
+
+  /* Opponent table */
+  .opp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .opp-table th {
+    background: var(--card2);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .opp-table td { padding: 10px 14px; border-bottom: 1px solid rgba(46,51,72,.5); }
+  .opp-table tr:hover td { background: rgba(108,92,231,.05); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text2);
+  }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 480px;
+  }
+  .modal h3 { margin-bottom: 16px; color: var(--accent2); }
+  .modal textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 13px;
+    resize: vertical;
+    margin-bottom: 16px;
+  }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    .form-row { grid-template-columns: 1fr 1fr; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Footer */
+  .app-footer {
+    text-align: center;
+    padding: 24px 16px 16px;
+    margin-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--text2);
+    font-size: 13px;
+  }
+  .app-footer .author {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .app-footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .app-footer a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>SF6 排位对局记录</h1>
+    <div class="header-actions">
+      <button class="btn" onclick="exportData()">导出 JSON</button>
+      <button class="btn" onclick="showImportModal()">导入 JSON</button>
+      <button class="btn danger" onclick="clearAllData()">清空数据</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="label">总对局</div><div class="value neutral" id="sTotal">0</div></div>
+    <div class="stat-card"><div class="label">胜率</div><div class="value neutral" id="sWinRate">-</div></div>
+    <div class="stat-card"><div class="label">起始 LP</div><div class="value neutral" id="sStart">-</div></div>
+    <div class="stat-card"><div class="label">当前 LP / 段位</div><div class="value neutral" id="sCurrent">-</div></div>
+    <div class="stat-card"><div class="label">净胜 LP</div><div class="value" id="sNet">-</div></div>
+    <div class="stat-card"><div class="label">最高 LP</div><div class="value up" id="sPeak">-</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="record">录入对局</button>
+    <button class="tab" data-tab="history">对局记录</button>
+    <button class="tab" data-tab="charts">数据图表</button>
+    <button class="tab" data-tab="opponents">对手统计</button>
+  </div>
+
+  <!-- Tab: Record -->
+  <div class="tab-content active" id="tab-record">
+    <div class="form-card">
+      <h3>录入新一局</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>对手角色</label>
+          <select id="fOpp">
+            <option value="">-- 选择角色 --</option>
+            <optgroup label="基础角色（18人）">
+              <option>隆</option><option>春丽</option><option>卢克</option><option>杰米</option>
+              <option>古烈</option><option>金佰莉</option><option>韩蛛俐</option><option>肯</option>
+              <option>布兰卡</option><option>达尔西姆</option><option>本田</option><option>迪·杰</option>
+              <option>曼侬</option><option>玛丽莎</option><option>JP</option><option>桑吉尔夫</option>
+              <option>嘉米</option><option>莉莉</option>
+            </optgroup>
+            <optgroup label="第一年 DLC（4人）">
+              <option>拉希德</option><option>阿鬼</option><option>爱德</option><option>豪鬼</option>
+            </optgroup>
+            <optgroup label="第二年 DLC（4人）">
+              <option>维加</option><option>特瑞</option><option>不知火舞</option><option>艾琳娜</option>
+            </optgroup>
+            <optgroup label="第三年 DLC（4人）">
+              <option>沙加特</option><option>深红毒蛇</option><option>阿历克斯</option><option>英格丽德</option>
+            </optgroup>
+            <optgroup label="第四年 DLC（4人）">
+              <option>亚思敏</option><option>阿俊</option><option>蒂法</option><option>巴什</option>
+            </optgroup>
+            <optgroup label="其他">
+              <option value="__custom__">✏️ 手动输入...</option>
+            </optgroup>
+          </select>
+          <input type="text" id="fOppCustom" placeholder="输入自定义对手名称" style="display:none;margin-top:6px">
+        </div>
+        <div class="form-group">
+          <label>结果</label>
+          <div class="result-toggle">
+            <button id="btnWin" onclick="setResult('win')">胜</button>
+            <button id="btnDraw" onclick="setResult('draw')">平</button>
+            <button id="btnLoss" onclick="setResult('loss')">负</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>赛前 LP</label>
+          <input type="number" id="fLpBefore" placeholder="如 15000">
+        </div>
+        <div class="form-group">
+          <label>赛后 LP</label>
+          <input type="number" id="fLpAfter" placeholder="自动计算差值">
+        </div>
+        <div class="form-group">
+          <label>差值</label>
+          <input type="number" id="fDiff" placeholder="自动计算" readonly style="opacity:.7">
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button class="btn primary" onclick="addMatch()" style="width:100%;justify-content:center">添加对局</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: History -->
+  <div class="tab-content" id="tab-history">
+    <div class="table-card">
+      <div class="table-header">
+        <h3>对局记录</h3>
+        <span id="matchCount" style="font-size:12px;color:var(--text2)"></span>
+      </div>
+      <div id="dateTabs" style="display:flex;gap:4px;padding:12px 20px;flex-wrap:wrap;border-bottom:1px solid var(--border)"></div>
+      <div class="table-wrap" id="historyTableWrap">
+        <div class="empty" id="emptyHistory">
+          <div class="icon">📋</div>
+          <p>还没有对局记录，去「录入对局」添加第一局吧</p>
+        </div>
+        <table id="historyTable" style="display:none">
+          <thead>
+            <tr><th>#</th><th>对手</th><th>结果</th><th>赛前LP</th><th>赛后LP</th><th>差值</th><th>时间</th><th>操作</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Charts -->
+  <div class="tab-content" id="tab-charts">
+    <div class="chart-card">
+      <h3 id="chartTitle1">LP 走势（柱状 + 顶点连线）</h3>
+      <div class="chart-wrap main"><canvas id="scoreChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3 id="chartTitle2">每局 LP 差值</h3>
+      <div class="chart-wrap diff"><canvas id="diffChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Tab: Opponents -->
+  <div class="tab-content" id="tab-opponents">
+    <div class="table-card">
+      <div class="table-header"><h3>对手战绩汇总</h3></div>
+      <div class="table-wrap" id="oppTableWrap">
+        <div class="empty" id="emptyOpp">
+          <div class="icon">👥</div>
+          <p>录入对局后这里会显示对手统计</p>
+        </div>
+        <table class="opp-table" id="oppTable" style="display:none">
+          <thead><tr><th>对手</th><th>对局数</th><th>胜</th><th>平</th><th>负</th><th>胜率</th><th>总差值</th><th>平均差值</th></tr></thead>
+          <tbody id="oppBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <h3>导入数据</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">粘贴之前导出的 JSON 数据：</p>
+    <textarea id="importText" placeholder='[{"opp":"阿俊","result":"win","lpBefore":15000,"lpAfter":15060}]'></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="hideImportModal()">取消</button>
+      <button class="btn primary" onclick="doImport()">导入</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Rank Data ──
+const RANK_THRESHOLDS = [
+  {rank: 'ROOKIE1',  lp: 0,    tier: 'ROOKIE',  star: 1},
+  {rank: 'ROOKIE2',  lp: 200,  tier: 'ROOKIE',  star: 2},
+  {rank: 'ROOKIE3',  lp: 400,  tier: 'ROOKIE',  star: 3},
+  {rank: 'ROOKIE4',  lp: 600,  tier: 'ROOKIE',  star: 4},
+  {rank: 'ROOKIE5',  lp: 800,  tier: 'ROOKIE',  star: 5},
+  {rank: 'IRON1',    lp: 1000, tier: 'IRON',    star: 1},
+  {rank: 'IRON2',    lp: 1400, tier: 'IRON',    star: 2},
+  {rank: 'IRON3',    lp: 1800, tier: 'IRON',    star: 3},
+  {rank: 'IRON4',    lp: 2200, tier: 'IRON',    star: 4},
+  {rank: 'IRON5',    lp: 2600, tier: 'IRON',    star: 5},
+  {rank: 'BRONZE1',  lp: 3000, tier: 'BRONZE',  star: 1},
+  {rank: 'BRONZE2',  lp: 3400, tier: 'BRONZE',  star: 2},
+  {rank: 'BRONZE3',  lp: 3800, tier: 'BRONZE',  star: 3},
+  {rank: 'BRONZE4',  lp: 4200, tier: 'BRONZE',  star: 4},
+  {rank: 'BRONZE5',  lp: 4600, tier: 'BRONZE',  star: 5},
+  {rank: 'SILVER1',  lp: 5000, tier: 'SILVER',  star: 1},
+  {rank: 'SILVER2',  lp: 5800, tier: 'SILVER',  star: 2},
+  {rank: 'SILVER3',  lp: 6600, tier: 'SILVER',  star: 3},
+  {rank: 'SILVER4',  lp: 7400, tier: 'SILVER',  star: 4},
+  {rank: 'SILVER5',  lp: 8200, tier: 'SILVER',  star: 5},
+  {rank: 'GOLD1',    lp: 9000, tier: 'GOLD',    star: 1},
+  {rank: 'GOLD2',    lp: 9800, tier: 'GOLD',    star: 2},
+  {rank: 'GOLD3',    lp: 10600,tier: 'GOLD',    star: 3},
+  {rank: 'GOLD4',    lp: 11400,tier: 'GOLD',    star: 4},
+  {rank: 'GOLD5',    lp: 12200,tier: 'GOLD',    star: 5},
+  {rank: 'PLATINUM1',lp: 13000,tier: 'PLATINUM',star: 1},
+  {rank: 'PLATINUM2',lp: 14200,tier: 'PLATINUM',star: 2},
+  {rank: 'PLATINUM3',lp: 15400,tier: 'PLATINUM',star: 3},
+  {rank: 'PLATINUM4',lp: 16600,tier: 'PLATINUM',star: 4},
+  {rank: 'PLATINUM5',lp: 17800,tier: 'PLATINUM',star: 5},
+  {rank: 'DIAMOND1', lp: 19000,tier: 'DIAMOND', star: 1},
+  {rank: 'DIAMOND2', lp: 20200,tier: 'DIAMOND', star: 2},
+  {rank: 'DIAMOND3', lp: 21400,tier: 'DIAMOND', star: 3},
+  {rank: 'DIAMOND4', lp: 22600,tier: 'DIAMOND', star: 4},
+  {rank: 'DIAMOND5', lp: 23800,tier: 'DIAMOND', star: 5},
+  {rank: 'MASTER',   lp: 25000,tier: 'MASTER',  star: 0},
+  {rank: 'HIGH_MASTER',lp:26000,tier:'HIGH_MASTER',star:0},
+  {rank: 'GRAND_MASTER',lp:27000,tier:'GRAND_MASTER',star:0},
+  {rank: 'ULTIMATE_MASTER',lp:28000,tier:'ULTIMATE_MASTER',star:0},
+  {rank: 'LEGEND',   lp: 999999,tier:'LEGEND',  star: 0},
+];
+
+const TIER_NAMES = {
+  ROOKIE: '菜鸟', IRON: '黑铁', BRONZE: '青铜', SILVER: '白银',
+  GOLD: '黄金', PLATINUM: '铂金', DIAMOND: '钻石',
+  MASTER: '大师', HIGH_MASTER: '高级大师', GRAND_MASTER: '特级大师',
+  ULTIMATE_MASTER: '终极大师', LEGEND: '传奇500强'
+};
+
+const TIER_COLORS = {
+  ROOKIE: '#9e9e9e', IRON: '#616161', BRONZE: '#cd7f32', SILVER: '#c0c0c0',
+  GOLD: '#ffd700', PLATINUM: '#e5e4e2', DIAMOND: '#b9f2ff',
+  MASTER: '#00e676', HIGH_MASTER: '#00e676', GRAND_MASTER: '#00e676',
+  ULTIMATE_MASTER: '#00e676', LEGEND: '#ff6d00'
+};
+
+function getRank(lp) {
+  let result = RANK_THRESHOLDS[0];
+  for (const r of RANK_THRESHOLDS) {
+    if (lp >= r.lp) result = r;
+    else break;
+  }
+  return result;
+}
+
+function getRankDisplay(lp) {
+  const r = getRank(lp);
+  const tierName = TIER_NAMES[r.tier] || r.tier;
+  const color = TIER_COLORS[r.tier] || '#fff';
+  const starNum = r.star > 0 ? r.star : '';
+  return {rank: r.rank, tier: tierName, color, star: r.star, starNum};
+}
+
+function formatTime(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  const s = String(date.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${d} ${h}:${min}:${s}`;
+}
+
+function getDateKey(timeStr) {
+  if (!timeStr) return '未记录';
+  return timeStr.split(' ')[0];
+}
+
+function groupMatchesByDate() {
+  const groups = {};
+  matches.forEach(m => {
+    const dateKey = getDateKey(m.time);
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(m);
+  });
+  return groups;
+}
+
+function getSortedDateKeys() {
+  const groups = groupMatchesByDate();
+  return Object.keys(groups).sort((a, b) => {
+    if (a === '未记录') return 1;
+    if (b === '未记录') return -1;
+    // Normalize separators so mixed formats sort correctly
+    const na = a.replace(/\//g, '-');
+    const nb = b.replace(/\//g, '-');
+    return nb.localeCompare(na); // newest first
+  });
+}
+
+// ── State ──
+let matches = JSON.parse(localStorage.getItem('sf6_matches') || '[]');
+let currentResult = null;
+let scoreChartInstance = null;
+let diffChartInstance = null;
+let selectedDate = null;
+
+// ─ Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  setupTabs();
+  setupAutoCalc();
+  setupOppSelect();
+  refreshAll();
+  fillLastLp();
+});
+
+function fillLastLp() {
+  if (matches.length > 0) {
+    document.getElementById('fLpBefore').value = matches[matches.length - 1].lpAfter;
+  }
+}
+
+function setupOppSelect() {
+  document.getElementById('fOpp').addEventListener('change', function() {
+    const customInput = document.getElementById('fOppCustom');
+    customInput.style.display = this.value === '__custom__' ? 'block' : 'none';
+    if (this.value === '__custom__') customInput.focus();
+  });
+}
+
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'charts') renderCharts();
+      if (tab.dataset.tab === 'history') renderHistory();
+    });
+  });
+}
+
+function setupAutoCalc() {
+  const lpBefore = document.getElementById('fLpBefore');
+  const lpAfter = document.getElementById('fLpAfter');
+  const diff = document.getElementById('fDiff');
+
+  function calc() {
+    const b = parseFloat(lpBefore.value);
+    const a = parseFloat(lpAfter.value);
+    if (!isNaN(b) && !isNaN(a)) {
+      diff.value = (a - b) > 0 ? '+' + (a - b) : (a - b);
+    } else {
+      diff.value = '';
+    }
+  }
+  lpBefore.addEventListener('input', calc);
+  lpAfter.addEventListener('input', calc);
+}
+
+function setResult(r) {
+  currentResult = r;
+  document.getElementById('btnWin').className = r === 'win' ? 'win-active' : '';
+  document.getElementById('btnDraw').className = r === 'draw' ? 'draw-active' : '';
+  document.getElementById('btnLoss').className = r === 'loss' ? 'loss-active' : '';
+}
+
+// ── CRUD ──
+function addMatch() {
+  const sel = document.getElementById('fOpp');
+  let opp = sel.value;
+  if (opp === '__custom__') {
+    opp = document.getElementById('fOppCustom').value.trim();
+  }
+  const lpBefore = parseFloat(document.getElementById('fLpBefore').value);
+  const lpAfter = parseFloat(document.getElementById('fLpAfter').value);
+
+  if (!opp) return alert('请选择或输入对手名称');
+  if (!currentResult) return alert('请选择胜负结果');
+  if (isNaN(lpBefore) || isNaN(lpAfter)) return alert('请输入赛前和赛后 LP');
+
+  matches.push({
+    id: Date.now(),
+    opp,
+    result: currentResult,
+    lpBefore,
+    lpAfter,
+    diff: lpAfter - lpBefore,
+    time: formatTime(new Date())
+  });
+
+  save();
+  // Set selected date to today
+  selectedDate = formatTime(new Date()).split(' ')[0];
+  refreshAll();
+
+  // Reset form
+  document.getElementById('fOpp').value = '';
+  document.getElementById('fOppCustom').value = '';
+  document.getElementById('fOppCustom').style.display = 'none';
+  document.getElementById('fLpBefore').value = lpAfter; // auto-fill next match's before
+  document.getElementById('fLpAfter').value = '';
+  document.getElementById('fDiff').value = '';
+  setResult(null);
+}
+
+function deleteMatch(id) {
+  if (!confirm('确定删除这条记录？')) return;
+  matches = matches.filter(m => m.id !== id);
+  save();
+  refreshAll();
+}
+
+function clearAllData() {
+  if (!confirm('确定清空所有数据？此操作不可恢复。')) return;
+  matches = [];
+  save();
+  refreshAll();
+}
+
+function save() {
+  localStorage.setItem('sf6_matches', JSON.stringify(matches));
+}
+
+// ── Refresh ──
+function refreshAll() {
+  updateStats();
+  renderHistory();
+  renderOpponents();
+}
+
+function updateStats() {
+  const total = matches.length;
+  const wins = matches.filter(m => m.result === 'win').length;
+  const start = total > 0 ? matches[0].lpBefore : 0;
+  const current = total > 0 ? matches[total - 1].lpAfter : 0;
+  const net = current - start;
+  const peak = total > 0 ? Math.max(...matches.map(m => m.lpAfter), start) : 0;
+  const wr = total > 0 ? (wins / total * 100).toFixed(1) + '%' : '-';
+
+  document.getElementById('sTotal').textContent = total;
+  document.getElementById('sWinRate').textContent = wr;
+  document.getElementById('sStart').textContent = total > 0 ? start.toLocaleString() : '-';
+  
+  const currentEl = document.getElementById('sCurrent');
+  if (total > 0) {
+    const rankInfo = getRankDisplay(current);
+    const starText = rankInfo.star > 0 ? rankInfo.starNum + '★' : '';
+    currentEl.innerHTML = `<div style="font-size:18px">${current.toLocaleString()}</div><div style="font-size:12px;color:${rankInfo.color};font-weight:600">${rankInfo.tier}${starText}</div>`;
+  } else {
+    currentEl.textContent = '-';
+  }
+
+  const netEl = document.getElementById('sNet');
+  netEl.textContent = (net > 0 ? '+' : '') + net;
+  netEl.className = 'value ' + (net > 0 ? 'up' : net < 0 ? 'down' : 'neutral');
+
+  document.getElementById('sPeak').textContent = total > 0 ? peak.toLocaleString() : '-';
+}
+
+function renderDateTabs() {
+  const container = document.getElementById('dateTabs');
+  const dateKeys = getSortedDateKeys();
+  
+  if (dateKeys.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  container.style.display = 'flex';
+  
+  // Set default selected date
+  if (!selectedDate || (!dateKeys.includes(selectedDate) && selectedDate !== '全部')) {
+    selectedDate = dateKeys[0];
+  }
+  
+  const allBtn = `<button class="btn sm ${selectedDate === '全部' ? 'primary' : ''}" onclick="selectDate('全部')" style="font-size:12px">全部 (${matches.length}局)</button>`;
+  const dateBtns = dateKeys.map(date => `
+    <button class="btn sm ${date === selectedDate ? 'primary' : ''}" onclick="selectDate('${date}')" style="font-size:12px">
+      ${date} (${groupMatchesByDate()[date].length}局)
+    </button>
+  `).join('');
+  
+  container.innerHTML = allBtn + dateBtns;
+}
+
+function selectDate(date) {
+  selectedDate = date;
+  renderDateTabs();
+  renderHistory();
+  renderCharts();
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('historyBody');
+  const table = document.getElementById('historyTable');
+  const empty = document.getElementById('emptyHistory');
+  const count = document.getElementById('matchCount');
+
+  renderDateTabs();
+
+  if (matches.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    count.textContent = '';
+    return;
+  }
+
+  // Filter matches by selected date
+  const filteredMatches = selectedDate && selectedDate !== '全部'
+    ? matches.filter(m => getDateKey(m.time) === selectedDate)
+    : matches;
+
+  if (filteredMatches.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    count.textContent = '';
+    return;
+  }
+
+  table.style.display = 'table';
+  empty.style.display = 'none';
+  const dateLabel = selectedDate === '全部' ? '全部日期' : selectedDate;
+  count.textContent = `${dateLabel} - 共 ${filteredMatches.length} 局`;
+
+  const reversed = [...filteredMatches].reverse();
+  tbody.innerHTML = reversed.map((m, i) => {
+    const rankInfo = getRankDisplay(m.lpAfter);
+    const starText = rankInfo.star > 0 ? rankInfo.starNum + '★' : '';
+    const timeText = m.time || '';
+    
+    // Calculate rank change annotation
+    let rankChange = '';
+    const originalIndex = matches.indexOf(m);
+    if (originalIndex > 0) {
+      const prevMatch = matches[originalIndex - 1];
+      const prevRank = getRank(prevMatch.lpAfter);
+      const currRank = getRank(m.lpAfter);
+      
+      if (prevRank.tier !== currRank.tier) {
+        const tierOrder = ['ROOKIE','IRON','BRONZE','SILVER','GOLD','PLATINUM','DIAMOND','MASTER','HIGH_MASTER','GRAND_MASTER','ULTIMATE_MASTER','LEGEND'];
+        const prevTierIdx = tierOrder.indexOf(prevRank.tier);
+        const currTierIdx = tierOrder.indexOf(currRank.tier);
+        if (currTierIdx > prevTierIdx) {
+          rankChange = '<span style="color:#00e676;font-size:11px;font-weight:600">↑升段</span>';
+        } else {
+          rankChange = '<span style="color:#ff6b6b;font-size:11px;font-weight:600">↓降段</span>';
+        }
+      } else if (prevRank.star !== currRank.star && currRank.star > 0) {
+        if (currRank.star > prevRank.star) {
+          rankChange = '<span style="color:#00e676;font-size:11px">↑升星</span>';
+        } else {
+          rankChange = '<span style="color:#ff6b6b;font-size:11px">↓降星</span>';
+        }
+      }
+    }
+    
+    return `
+    <tr>
+      <td>${filteredMatches.length - i}</td>
+      <td>${m.opp}</td>
+      <td><span class="tag ${m.result}">${m.result === 'win' ? '胜' : m.result === 'loss' ? '负' : '平'}</span></td>
+      <td>${m.lpBefore.toLocaleString()}</td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <span>${m.lpAfter.toLocaleString()}</span>
+          <span style="color:${rankInfo.color};font-size:11px;font-weight:600">${rankInfo.tier}${starText} ${rankChange}</span>
+        </div>
+      </td>
+      <td class="${m.diff >= 0 ? 'diff-up' : 'diff-down'}">${m.diff > 0 ? '+' : ''}${m.diff}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap">${timeText}</td>
+      <td class="actions-cell">
+        <button class="btn sm danger" onclick="deleteMatch(${m.id})">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderOpponents() {
+  const tbody = document.getElementById('oppBody');
+  const table = document.getElementById('oppTable');
+  const empty = document.getElementById('emptyOpp');
+
+  if (matches.length === 0) {
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  table.style.display = 'table';
+  empty.style.display = 'none';
+
+  const oppMap = {};
+  matches.forEach(m => {
+    if (!oppMap[m.opp]) oppMap[m.opp] = { count: 0, wins: 0, draws: 0, totalDiff: 0 };
+    oppMap[m.opp].count++;
+    if (m.result === 'win') oppMap[m.opp].wins++;
+    if (m.result === 'draw') oppMap[m.opp].draws++;
+    oppMap[m.opp].totalDiff += m.diff;
+  });
+
+  const rows = Object.entries(oppMap)
+    .sort((a, b) => b[1].totalDiff - a[1].totalDiff)
+    .map(([name, d]) => {
+      const avg = (d.totalDiff / d.count).toFixed(1);
+      const wr = (d.wins / d.count * 100).toFixed(0);
+      const sign = d.totalDiff > 0 ? '+' : '';
+      const cls = d.totalDiff >= 0 ? 'diff-up' : 'diff-down';
+      return `<tr>
+        <td>${name}</td>
+        <td>${d.count}</td>
+        <td style="color:var(--green)">${d.wins}</td>
+        <td style="color:#6b7280">${d.draws}</td>
+        <td style="color:var(--red)">${d.count - d.wins - d.draws}</td>
+        <td class="${parseInt(wr) >= 50 ? 'diff-up' : 'diff-down'}">${wr}%</td>
+        <td class="${cls}">${sign}${d.totalDiff}</td>
+        <td class="${cls}">${sign}${avg}</td>
+      </tr>`;
+    }).join('');
+
+  tbody.innerHTML = rows;
+}
+
+// ── Charts ──
+function renderCharts() {
+  // Filter matches by selected date
+  const chartMatches = selectedDate && selectedDate !== '全部'
+    ? matches.filter(m => getDateKey(m.time) === selectedDate)
+    : matches;
+  
+  if (chartMatches.length === 0) return;
+
+  // Update chart titles
+  const dateLabel = selectedDate === '全部' ? '全部日期' : (selectedDate || '全部');
+  document.getElementById('chartTitle1').textContent = `LP 走势 - ${dateLabel}（柱状 + 顶点连线）`;
+  document.getElementById('chartTitle2').textContent = `每局 LP 差值 - ${dateLabel}`;
+
+  const labels = chartMatches.map((_, i) => i + 1);
+  const scores = chartMatches.map(m => m.lpAfter);
+  const diffs = chartMatches.map(m => m.diff);
+  const opps = chartMatches.map(m => m.opp);
+
+  const barColors = diffs.map(d => d >= 0 ? 'rgba(0,206,201,0.5)' : 'rgba(255,107,107,0.5)');
+  const barBorders = diffs.map(d => d >= 0 ? 'rgba(0,206,201,0.8)' : 'rgba(255,107,107,0.8)');
+
+  // Score chart
+  if (scoreChartInstance) scoreChartInstance.destroy();
+  scoreChartInstance = new Chart(document.getElementById('scoreChart'), {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'LP',
+          data: scores,
+          backgroundColor: barColors,
+          borderColor: barBorders,
+          borderWidth: 1,
+          borderRadius: 3,
+          barPercentage: 0.72,
+          categoryPercentage: 0.88,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: '趋势线',
+          data: scores,
+          borderColor: '#feca57',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#feca57',
+          pointBorderColor: '#1a1d27',
+          pointBorderWidth: 2,
+          pointRadius: 3.5,
+          pointHoverRadius: 6,
+          tension: 0,
+          fill: false,
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { usePointStyle: true, padding: 18, color: '#8b8fa3', font: { size: 13 } } },
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          padding: 10,
+          titleColor: '#e4e6f0',
+          bodyColor: '#e4e6f0',
+          callbacks: {
+            title: ctx => `第 ${ctx[0].label} 局  vs ${opps[ctx[0].dataIndex]}`,
+            label: ctx => ctx.dataset.label === 'LP' ? `LP: ${ctx.parsed.y.toLocaleString()}` : null,
+            afterBody: ctx => {
+              const d = diffs[ctx[0].dataIndex];
+              return d !== 0 ? `差值: ${d > 0 ? '+' : ''}${d}` : '';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: '局数', color: '#8b8fa3', font: { size: 13, weight: 'bold' } },
+          grid: { display: false },
+          ticks: { color: '#8b8fa3', font: { size: 10 }, maxRotation: 0 }
+        },
+        y: {
+          min: Math.min(...scores) - 50,
+          max: Math.max(...scores) + 50,
+          ticks: { callback: v => v.toLocaleString(), color: '#8b8fa3', font: { size: 11 } },
+          grid: { color: 'rgba(46,51,72,0.5)' }
+        }
+      }
+    }
+  });
+
+  // Diff chart
+  const diffColors = diffs.map(d => d >= 0 ? 'rgba(0,206,201,0.65)' : 'rgba(255,107,107,0.65)');
+  const diffBorders = diffs.map(d => d >= 0 ? 'rgba(0,206,201,0.9)' : 'rgba(255,107,107,0.9)');
+
+  if (diffChartInstance) diffChartInstance.destroy();
+  diffChartInstance = new Chart(document.getElementById('diffChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'LP 差值',
+        data: diffs,
+        backgroundColor: diffColors,
+        borderColor: diffBorders,
+        borderWidth: 1,
+        borderRadius: 3,
+        barPercentage: 0.72,
+        categoryPercentage: 0.88,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          padding: 10,
+          titleColor: '#e4e6f0',
+          bodyColor: '#e4e6f0',
+          callbacks: {
+            title: ctx => `第 ${ctx[0].label} 局  vs ${opps[ctx[0].dataIndex]}`,
+            label: ctx => `差值: ${ctx.parsed.y > 0 ? '+' : ''}${ctx.parsed.y}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: '局数', color: '#8b8fa3', font: { size: 13, weight: 'bold' } },
+          grid: { display: false },
+          ticks: { color: '#8b8fa3', font: { size: 10 }, maxRotation: 0 }
+        },
+        y: {
+          ticks: { callback: v => (v > 0 ? '+' : '') + v, color: '#8b8fa3', font: { size: 11 } },
+          grid: { color: 'rgba(46,51,72,0.5)' }
+        }
+      }
+    }
+  });
+}
+
+// ── Import / Export ──
+function exportData() {
+  if (matches.length === 0) return alert('没有数据可导出');
+  const json = JSON.stringify(matches, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `sf6_matches_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showImportModal() {
+  document.getElementById('importModal').classList.add('show');
+  document.getElementById('importText').value = '';
+}
+function hideImportModal() {
+  document.getElementById('importModal').classList.remove('show');
+}
+
+function doImport() {
+  try {
+    const data = JSON.parse(document.getElementById('importText').value);
+    if (!Array.isArray(data)) throw new Error('数据格式错误');
+    if (confirm(`将导入 ${data.length} 条记录，会合并到现有数据中。继续？`)) {
+      matches = matches.concat(data);
+      save();
+      refreshAll();
+      hideImportModal();
+    }
+  } catch (e) {
+    alert('JSON 解析失败：' + e.message);
+  }
+}
+</script>
+
+<footer class="app-footer">
+  <div class="author">Made by savages</div>
+</footer>
+</body>
+</html>

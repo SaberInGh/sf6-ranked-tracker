@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对局数据分析</title>
+<script src="chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #f0f2f5;
+    padding: 24px;
+    color: #1a1a2e;
+  }
+  .dashboard {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #1a1a2e;
+  }
+
+  /* Stats cards */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.06);
+    text-align: center;
+  }
+  .stat-card .label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .stat-card .value { font-size: 22px; font-weight: 700; }
+  .stat-card .value.up { color: #22c55e; }
+  .stat-card .value.down { color: #ef4444; }
+  .stat-card .value.neutral { color: #3b82f6; }
+
+  /* Chart cards */
+  .chart-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 8px rgba(0,0,0,.06);
+    padding: 24px 28px 18px;
+    margin-bottom: 20px;
+  }
+  .chart-card h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    color: #333;
+  }
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap.main { height: 420px; }
+  .chart-wrap.diff { height: 320px; }
+
+  /* Opponent table */
+  .opp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .opp-table th {
+    background: #f8f9fa;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .opp-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .opp-table .win { color: #22c55e; font-weight: 600; }
+  .opp-table .loss { color: #ef4444; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <h1>对局数据分析（27局）</h1>
+
+  <!-- Summary stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="label">起始分数</div>
+      <div class="value neutral">14,806</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">最终分数</div>
+      <div class="value neutral">15,547</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">总净胜分</div>
+      <div class="value up">+741</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">胜率</div>
+      <div class="value up" id="winRate">--</div>
+    </div>
+  </div>
+
+  <!-- Main chart: score bar + line -->
+  <div class="chart-card">
+    <h3>分数走势（柱状 + 顶点连线）</h3>
+    <div class="chart-wrap main">
+      <canvas id="scoreChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Diff chart -->
+  <div class="chart-card">
+    <h3>每局差值（绿色=胜，红色=负）</h3>
+    <div class="chart-wrap diff">
+      <canvas id="diffChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Opponent summary -->
+  <div class="chart-card">
+    <h3>对手战绩汇总</h3>
+    <table class="opp-table" id="oppTable">
+      <thead>
+        <tr><th>对手</th><th>对局数</th><th>总差值</th><th>平均差值</th><th>胜率</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const rounds = [
+  {n:1,  score:14806, opp:'',       diff:0},
+  {n:2,  score:14866, opp:'阿鬼',   diff:60},
+  {n:3,  score:14975, opp:'布兰卡', diff:109},
+  {n:4,  score:15061, opp:'老桑',   diff:86},
+  {n:5,  score:15125, opp:'卢克',   diff:64},
+  {n:6,  score:15185, opp:'朱莉',   diff:60},
+  {n:7,  score:15162, opp:'维嘉',   diff:-23},
+  {n:8,  score:15082, opp:'嘉米',   diff:-80},
+  {n:9,  score:15161, opp:'阿俊',   diff:79},
+  {n:10, score:15131, opp:'阿俊',   diff:-30},
+  {n:11, score:15183, opp:'阿俊',   diff:52},
+  {n:12, score:15234, opp:'阿俊',   diff:51},
+  {n:13, score:15154, opp:'杰米',   diff:-80},
+  {n:14, score:15254, opp:'杰米',   diff:100},
+  {n:15, score:15354, opp:'隆',     diff:100},
+  {n:16, score:15454, opp:'特瑞',   diff:100},
+  {n:17, score:15400, opp:'朱莉',   diff:-54},
+  {n:18, score:15519, opp:'特瑞',   diff:119},
+  {n:19, score:15501, opp:'阿俊',   diff:-18},
+  {n:20, score:15587, opp:'阿俊',   diff:86},
+  {n:21, score:15507, opp:'朱莉',   diff:-80},
+  {n:22, score:15479, opp:'杰米',   diff:-28},
+  {n:23, score:15541, opp:'阿俊',   diff:62},
+  {n:24, score:15519, opp:'肯',     diff:-22},
+  {n:25, score:15489, opp:'英格丽德',diff:-30},
+  {n:26, score:15481, opp:'艾德',   diff:-8},
+  {n:27, score:15547, opp:'沙加特', diff:66},
+];
+
+const labels = rounds.map(r => r.n);
+const scores = rounds.map(r => r.score);
+const diffs  = rounds.map(r => r.diff);
+const opps   = rounds.map(r => r.opp || '-');
+
+// Win rate
+const wins = diffs.filter(d => d > 0).length;
+const totalGames = diffs.filter(d => d !== 0).length;
+document.getElementById('winRate').textContent = (wins / totalGames * 100).toFixed(1) + '%';
+
+// ─ Chart 1: Score bar + line ──
+const barColors = diffs.map(d => d > 0 ? 'rgba(34,197,94,0.55)' : d < 0 ? 'rgba(239,68,68,0.55)' : 'rgba(148,163,184,0.45)');
+const barBorders = diffs.map(d => d > 0 ? 'rgba(34,197,94,0.85)' : d < 0 ? 'rgba(239,68,68,0.85)' : 'rgba(148,163,184,0.7)');
+
+new Chart(document.getElementById('scoreChart'), {
+  data: {
+    labels,
+    datasets: [
+      {
+        type: 'bar',
+        label: '分数',
+        data: scores,
+        backgroundColor: barColors,
+        borderColor: barBorders,
+        borderWidth: 1,
+        borderRadius: 3,
+        barPercentage: 0.72,
+        categoryPercentage: 0.88,
+        order: 2,
+      },
+      {
+        type: 'line',
+        label: '趋势线',
+        data: scores,
+        borderColor: '#f59e0b',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#f59e0b',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        pointRadius: 3.5,
+        pointHoverRadius: 6,
+        tension: 0,
+        fill: false,
+        order: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'top', labels: { usePointStyle: true, padding: 18, font: { size: 13 } } },
+      tooltip: {
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        padding: 10,
+        callbacks: {
+          title: ctx => `第 ${ctx[0].label} 局  vs ${opps[ctx[0].dataIndex]}`,
+          label: ctx => ctx.dataset.label === '分数' ? `分数: ${ctx.parsed.y.toLocaleString()}` : null,
+          afterBody: ctx => {
+            const d = diffs[ctx[0].dataIndex];
+            return d !== 0 ? `差值: ${d > 0 ? '+' : ''}${d}` : '';
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: '局数', font: { size: 13, weight: 'bold' } },
+        grid: { display: false },
+        ticks: { font: { size: 10 }, maxRotation: 0 }
+      },
+      y: {
+        min: 14600,
+        max: 15700,
+        ticks: { callback: v => v.toLocaleString(), font: { size: 11 } },
+        grid: { color: 'rgba(0,0,0,0.05)' }
+      }
+    }
+  }
+});
+
+// ── Chart 2: Diff bar ──
+const diffColors = diffs.map(d => d > 0 ? 'rgba(34,197,94,0.7)' : d < 0 ? 'rgba(239,68,68,0.7)' : 'rgba(148,163,184,0.4)');
+const diffBorders = diffs.map(d => d > 0 ? 'rgba(34,197,94,0.95)' : d < 0 ? 'rgba(239,68,68,0.95)' : 'rgba(148,163,184,0.6)');
+
+new Chart(document.getElementById('diffChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      label: '差值',
+      data: diffs,
+      backgroundColor: diffColors,
+      borderColor: diffBorders,
+      borderWidth: 1,
+      borderRadius: 3,
+      barPercentage: 0.72,
+      categoryPercentage: 0.88,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        padding: 10,
+        callbacks: {
+          title: ctx => `第 ${ctx[0].label} 局  vs ${opps[ctx[0].dataIndex]}`,
+          label: ctx => `差值: ${ctx.parsed.y > 0 ? '+' : ''}${ctx.parsed.y}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: '局数', font: { size: 13, weight: 'bold' } },
+        grid: { display: false },
+        ticks: { font: { size: 10 }, maxRotation: 0 }
+      },
+      y: {
+        ticks: { callback: v => (v > 0 ? '+' : '') + v, font: { size: 11 } },
+        grid: { color: 'rgba(0,0,0,0.05)' }
+      }
+    }
+  }
+});
+
+// ── Opponent summary table ──
+const oppMap = {};
+rounds.forEach(r => {
+  if (!r.opp) return;
+  if (!oppMap[r.opp]) oppMap[r.opp] = { count: 0, total: 0, wins: 0 };
+  oppMap[r.opp].count++;
+  oppMap[r.opp].total += r.diff;
+  if (r.diff > 0) oppMap[r.opp].wins++;
+});
+
+const tbody = document.querySelector('#oppTable tbody');
+Object.entries(oppMap)
+  .sort((a, b) => b[1].total - a[1].total)
+  .forEach(([name, d]) => {
+    const avg = (d.total / d.count).toFixed(1);
+    const wr = (d.wins / d.count * 100).toFixed(0);
+    const cls = d.total > 0 ? 'win' : 'loss';
+    const sign = d.total > 0 ? '+' : '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${name}</td><td>${d.count}</td><td class="${cls}">${sign}${d.total}</td><td class="${cls}">${sign}${avg}</td><td class="${cls}">${wr}%</td>`;
+    tbody.appendChild(tr);
+  });
+</script>
+</body>
+</html>
